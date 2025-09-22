@@ -88,14 +88,42 @@ class Weather {
 };
 
 class Alarms {
-  private: 
-    
-  
+  private:
+    // New
+    const int MAX_ALARMS = 10;
+    String alarms[MAX_ALARMS];
+    int alarmCount = 0;
+
   public: 
     Alarms() {
       
     }
-}
+
+    void addAlarm(String time) {
+      if (alarmCount >= MAX_ALARMS) {
+        Serial.println("Failed to add alarm: Too many alarms already");
+      } else {
+        alarms[alarmCount] = time;
+        Serial.println("Alarm added");
+        alarmCount++;
+      }
+    }
+
+    void removeAlarm(String time) {
+      bool found = false;
+      
+      for (int i = 0; i < alarmCount; i++) {
+        if (alarms[i] == time) {
+          found = true;
+
+        }
+      }
+
+      if (!found) {
+        Serial.println("Alarm not found.");
+      }
+    }
+};
 
 class Prayers {
   // Private variables
