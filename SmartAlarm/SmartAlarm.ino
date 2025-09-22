@@ -1,0 +1,173 @@
+// Libraries
+#include <WiFi.h>
+#include <HTTPClient.h>
+#include <ArduinoJson.h>
+#include "secrets.h"
+
+// const char* SSID = "___";
+// const char* PASSWORD = "___";
+const char* TIME_API = "http://worldclockapi.com/api/json/est/now";
+const char* WEATHER_API = "https://api.open-meteo.com/v1/forecast?latitude=40.6501&longitude=-73.9496&hourly=temperature_2m,rain,showers&timezone=America%2FNew_York&forecast_days=3";
+
+String getCurrentTime() {
+  // Create HTTP object and set URL
+  HTTPClient http;
+  http.begin(TIME_API);
+  // Get HTTP code to later verify output (200 = success, 429 = too many requests, etc)
+  int httpCode = http.GET();
+  // Serial.println(httpCode);
+  if (httpCode == HTTP_CODE_OK) {
+    // Set all JSON into string
+    String stringDataTime = http.getString();
+    // Make dict variable 'organizedTimeData' with allocated 1024 bytes
+    StaticJsonDocument<1024> organizedTimeData;
+    // Parse JSON string into dict variable
+    deserializeJson(organizedTimeData, stringDataTime);
+
+    // "2025-09-20T11:59-04:00"
+    String dateAndTime = organizedTimeData["currentDateTime"];
+
+    // Find the spot of 'T" and make a substring of everything from after it
+    int tIndex = dateAndTime.indexOf('T');
+    String onlyTime = dateAndTime.substring(tIndex + 1);
+
+    // Find the spot of '+' in the previous substring, if doesn't exist, look for spot of '-'
+    // This rules out the timezone difference part
+    int tzIndex = onlyTime.indexOf('+');
+    if (tzIndex == -1) {
+      tzIndex = onlyTime.indexOf('-');
+    }
+    // Turn 'onlyTime' back to another substring of itself, but lowered from the beginning till right before timezone difference part
+    onlyTime = onlyTime.substring(0, tzIndex);
+    Serial.println(onlyTime);
+
+    return onlyTime;
+  } else {
+    Serial.println("Issue with Time HTTP");
+  }
+  http.end();
+  // Return function incase of error
+  return "";
+}
+
+class Weather {
+  private:
+    DynamicJsonDocument organizedWeatherData;
+
+  public:
+    Weather() : organizedWeatherData(9000) {
+
+    } 
+
+    void fetchWeatherData() {
+      HTTPClient http;
+      http.begin(WEATHER_API);
+      int httpCode = http.GET();
+      if (httpCode == HTTP_CODE_OK){
+        String stringDataWeather = http.getString();
+        deserializeJson(organizedWeatherData, stringDataWeather);
+      } else {  
+        Serial.println("Issue with Weather HTTP");
+      }
+      http.end();
+    }
+    
+    void printNext24Hours() {
+      for (int i = 0; i < 24; i++) {
+        String hourTime = organizedWeatherData["hourly"]["time"][i];
+        float temperature = organizedWeatherData["hourly"]["temperature_2m"][i];
+        float rain = organizedWeatherData["hourly"]["rain"][i];
+        float showers = organizedWeatherData["hourly"]["showers"][i];
+
+        Serial.println(hourTime);
+        Serial.print(" Temp: "); Serial.print(temperature);
+        Serial.print(" Rain%: "); Serial.println((rain + showers) * 100);
+      }
+    }
+    
+};
+
+class Alarms {
+  private: 
+    
+  
+  public: 
+    Alarms() {
+      
+    }
+}
+
+class Prayers {
+  // Private variables
+  private: 
+    String _dhuhrTime; 
+  
+  // Everything accessible from outside
+  public:
+    // Constructor
+    Prayers() {
+      _dhuhrTime = "12:50";
+      
+    }
+
+    // Getter
+    String dhuhrTime() {
+      return _dhuhrTime;
+    }
+
+    // Normal class functions
+    bool isPrayerTime(String currentTime) {
+      return currentTime == dhuhrTime();
+    }
+  
+};
+
+const int LED_PIN = 2;
+Prayers prayers;
+Weather weather;
+
+void setup() {
+  // Baud #
+  Serial.begin(115200);
+
+  pinMode(LED_PIN, OUTPUT);
+
+  // Connect to WiFi and wait till connection
+  WiFi.begin(SSID, PASSWORD);
+  Serial.println("Connecting..");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  // Provide IP address and verify connection
+  Serial.println("Connected!");
+  Serial.println("IP Address: ");
+  Serial.print(WiFi.localIP());
+
+  weather.fetchWeatherData();
+  weather.printNext24Hours();
+}
+
+// Weather flag
+unsigned long lastWeatherUpdate = 0;
+const unsigned long weatherInterval = 3600000; // 1 hour in milliseconds
+
+void loop() {
+  String currentTime = getCurrentTime();
+  Serial.println(currentTime);
+
+  if (prayers.isPrayerTime(currentTime)) {
+    digitalWrite(LED_PIN, HIGH);
+  } else {
+    digitalWrite(LED_PIN, LOW);
+  }
+
+  if ((millis() - lastWeatherUpdate) > weatherInterval) {
+    weather.fetchWeatherData();
+    weather.printNext24Hours();
+    lastWeatherUpdate = millis();
+  }
+
+
+delay(5000);
+}
