@@ -51,10 +51,13 @@ String getCurrentTime() {
 }
 
 class Weather {
+  // Private variables only
   private:
     DynamicJsonDocument organizedWeatherData;
 
+  // Everything accessible from outside
   public:
+    // Constructor + initilization list
     Weather() : organizedWeatherData(9000) {
 
     } 
@@ -90,7 +93,7 @@ class Weather {
 class Alarms {
   private:
     // New
-    const int MAX_ALARMS = 10;
+    static const int MAX_ALARMS = 10;
     String alarms[MAX_ALARMS];
     int alarmCount = 0;
 
@@ -125,33 +128,30 @@ class Alarms {
     }
 };
 
-class Prayers {
-  // Private variables
+class SpecificTimeTest {
   private: 
-    String _dhuhrTime; 
+    String _time; 
   
-  // Everything accessible from outside
   public:
-    // Constructor
-    Prayers() {
-      _dhuhrTime = "12:50";
+    SpecificTimeTest() {
+      _time = "12:50";
       
     }
 
     // Getter
-    String dhuhrTime() {
-      return _dhuhrTime;
+    String time() {
+      return _time;
     }
 
     // Normal class functions
-    bool isPrayerTime(String currentTime) {
-      return currentTime == dhuhrTime();
+    bool isTimeYet(String currentTime) {
+      return currentTime == time();
     }
   
 };
 
 const int LED_PIN = 2;
-Prayers prayers;
+SpecificTimeTest specificTimeTest;
 Weather weather;
 
 void setup() {
@@ -172,6 +172,7 @@ void setup() {
   Serial.println("IP Address: ");
   Serial.print(WiFi.localIP());
 
+  // Get started (time takes only 5 seconds so no need)
   weather.fetchWeatherData();
   weather.printNext24Hours();
 }
@@ -184,7 +185,7 @@ void loop() {
   String currentTime = getCurrentTime();
   Serial.println(currentTime);
 
-  if (prayers.isPrayerTime(currentTime)) {
+  if (specificTimeTest.isTimeYet(currentTime)) {
     digitalWrite(LED_PIN, HIGH);
   } else {
     digitalWrite(LED_PIN, LOW);
