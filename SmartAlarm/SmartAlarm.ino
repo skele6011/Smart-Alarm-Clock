@@ -200,3 +200,35 @@ void loop() {
 
 delay(5000);
 }
+
+
+
+
+
+// For later
+/*
+
+
+bool alarmAcknowledged = false; // global
+
+bool isAlarmTime = alarms.checkAlarmTime();
+
+if (isAlarmTime && !alarmAcknowledged) {
+    digitalWrite(buzzerPin, HIGH);
+} else {
+    digitalWrite(buzzerPin, LOW);
+}
+
+if (buttonPressed && isAlarmTime) {
+    alarmAcknowledged = true;
+    digitalWrite(buzzerPin, LOW); // turn off immediately
+}
+
+// Reset acknowledgment when alarm ends
+if (!isAlarmTime) {
+    alarmAcknowledged = false;
+}
+
+
+*/
+
