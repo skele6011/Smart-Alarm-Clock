@@ -3,9 +3,10 @@
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include "secrets.h"
+#include <set>
 
-// const char* SSID = "___";
-// const char* PASSWORD = "___";
+// const char* SSID = "DOEGuest";
+// const char* PASSWORD = "NYC$itevent";
 const char* TIME_API = "http://worldclockapi.com/api/json/est/now";
 const char* WEATHER_API = "https://api.open-meteo.com/v1/forecast?latitude=40.6501&longitude=-73.9496&hourly=temperature_2m,rain,showers&timezone=America%2FNew_York&forecast_days=3";
 
@@ -44,6 +45,7 @@ String getCurrentTime() {
     return onlyTime;
   } else {
     Serial.println("Issue with Time HTTP");
+    Serial.println(httpCode);
   }
   http.end();
   // Return function incase of error
@@ -92,39 +94,38 @@ class Weather {
 
 class Alarms {
   private:
-    // New
-    static const int MAX_ALARMS = 10;
-    String alarms[MAX_ALARMS];
-    int alarmCount = 0;
+    std::set<String> alarmSet;
+    // int alarmCount = 0;
 
   public: 
-    Alarms() {
-      
-    }
+    Alarms() {    }
 
     void addAlarm(String time) {
-      if (alarmCount >= MAX_ALARMS) {
-        Serial.println("Failed to add alarm: Too many alarms already");
+      auto result = alarmSet.insert(time);
+      if (result.second) {
+        Serial.println("Successfuly added alarm at " + time);
+        // alarmCount++;
       } else {
-        alarms[alarmCount] = time;
-        Serial.println("Alarm added");
-        alarmCount++;
+        Serial.println("Already exists");
       }
     }
 
     void removeAlarm(String time) {
-      bool found = false;
-      
-      for (int i = 0; i < alarmCount; i++) {
-        if (alarms[i] == time) {
-          found = true;
+      auto erased = alarmSet.erase(time);
+      if (erased == 1) {
+        Serial.println("Alarm erased");
+      } else {
+        Serial.println("Alarm not found!");
+      }
+    }
 
+    bool checkAlarm(String time) {
+      for (const auto& alarmTime : alarmSet) {
+        if (alarmTime == time) {
+          return true;
         }
       }
-
-      if (!found) {
-        Serial.println("Alarm not found.");
-      }
+      return false;
     }
 };
 
@@ -151,8 +152,10 @@ class SpecificTimeTest {
 };
 
 const int LED_PIN = 2;
+const int BUTTON_PIN = 13;
 SpecificTimeTest specificTimeTest;
 Weather weather;
+Alarms alarms;
 
 void setup() {
   // Baud #
@@ -175,15 +178,24 @@ void setup() {
   // Get started (time takes only 5 seconds so no need)
   weather.fetchWeatherData();
   weather.printNext24Hours();
+
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
 }
 
 // Weather flag
 unsigned long lastWeatherUpdate = 0;
 const unsigned long weatherInterval = 3600000; // 1 hour in milliseconds
+// Time flag
+const unsigned int timeInterval = 5000;
+unsigned long lastTimeUpdate = 0;
 
 void loop() {
-  String currentTime = getCurrentTime();
+  String currentTime;
+  if (millis() - lastTimeUpdate > timeInterval) {
+  currentTime = getCurrentTime();
   Serial.println(currentTime);
+  lastTimeUpdate = millis();
+  }
 
   if (specificTimeTest.isTimeYet(currentTime)) {
     digitalWrite(LED_PIN, HIGH);
@@ -197,9 +209,36 @@ void loop() {
     lastWeatherUpdate = millis();
   }
 
+  String timeInput = "";
+  if (Serial.available() > 0) {
+    char c = Serial.read();
+    if (c == '|') {
+      Serial.println("Please enter time then press enter: ");
+      while (true) {
+        if (Serial.available() > 0) {
+          char t = Serial.read();
+          if (t == '\n') break;
+          if (t != '\r') timeInput += t;
+        }
+      }
+      alarms.addAlarm(timeInput);
+    }
+  }
+  
+  if (alarms.checkAlarm(currentTime)) {
+    digitalWrite(LED_PIN, HIGH);
+  }
 
-delay(5000);
+  int buttonState = digitalRead(BUTTON_PIN);
+  if (buttonState == LOW) {
+    Serial.println("Button Pressed!");
+  }
+  
 }
+
+/*
+
+*/
 
 
 
