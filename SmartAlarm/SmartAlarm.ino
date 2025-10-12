@@ -153,6 +153,7 @@ class SpecificTimeTest {
 
 const int LED_PIN = 2;
 const int BUTTON_PIN = 13;
+const int BUZZER_PIN = 14;
 SpecificTimeTest specificTimeTest;
 Weather weather;
 Alarms alarms;
@@ -178,8 +179,12 @@ void setup() {
   // Get started (time takes only 5 seconds so no need)
   weather.fetchWeatherData();
   weather.printNext24Hours();
-
+  
+  // use "button" mode for button
   pinMode(BUTTON_PIN, INPUT_PULLUP);
+  // Initialize buzzer
+  pinMode(BUZZER_PIN, OUTPUT);
+  digitalWrite(BUZZER_PIN, LOW);
 }
 
 // Weather flag
@@ -190,7 +195,7 @@ const unsigned int timeInterval = 5000;
 unsigned long lastTimeUpdate = 0;
 
 void loop() {
-  String currentTime;
+  String currentTime = "";
   if (millis() - lastTimeUpdate > timeInterval) {
   currentTime = getCurrentTime();
   Serial.println(currentTime);
@@ -225,6 +230,9 @@ void loop() {
     }
   }
   
+
+  // ALL What's below to be changed !!! 
+  
   if (alarms.checkAlarm(currentTime)) {
     digitalWrite(LED_PIN, HIGH);
   }
@@ -232,8 +240,13 @@ void loop() {
   int buttonState = digitalRead(BUTTON_PIN);
   if (buttonState == LOW) {
     Serial.println("Button Pressed!");
+    digitalWrite(BUZZER_PIN, LOW);
+  } else {
+    digitalWrite(BUZZER_PIN, HIGH);
   }
   
+
+
 }
 
 /*
