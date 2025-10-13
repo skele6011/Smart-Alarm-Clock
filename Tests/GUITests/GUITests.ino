@@ -9,9 +9,7 @@
 // const char* SSID = "DOEGuest";
 // const char* PASSWORD = "NYC$itevent";
 const char* TIME_API = "http://worldclockapi.com/api/json/est/now";
-const char* SECOND_TIME_API = "https://worldtimeapi.org/api/timezone/America/New_York.json";
 const char* WEATHER_API = "https://api.open-meteo.com/v1/forecast?latitude=40.6501&longitude=-73.9496&hourly=temperature_2m,rain,showers&timezone=America%2FNew_York&forecast_days=3";
-
 TFT_eSPI tft = TFT_eSPI();
 String screenStartText = "Hi, I am Screen!";
 
@@ -56,158 +54,6 @@ String getCurrentTime() {
   // Return function incase of error
   return "";
 }
-
-String currentTimeSecondAPI() {
-  HTTPClient http;
-  http.begin(SECOND_TIME_API);
-  int httpCode = http.GET();
-  if (httpCode == HTTP_CODE_OK) {
-    String stringDataTime = http.getString();
-    StaticJsonDocument<1024> organizedTimeData;
-    deserializeJson(organizedTimeData, stringDataTime);
-
-    // 2025-10-13T10:08:19.366299-04:00
-    String dateAndTime = organizedTimeData["datetime"];
-
-    int tIndex = dateAndTime.indexOf('T');
-    String onlyTime = dateAndTime.substring(tIndex + 1);
-
-    // int tzIndex = onlyTime.indexOf('.');
-    onlyTime = onlyTime.substring(0, 5);
-    Serial.println(onlyTime);
-
-    return onlyTime;
-  } else {
-    Serial.println("Issue with Time HTTP");
-    Serial.println(httpCode);
-  }
-  http.end();
-  return "";
-}
-
-String manuallyInputtedTime = "";
-unsigned long lastManualTimeUpdate = 0;
-int manualMinutes = 0;
-int manualHours = 0;
-
-void putManualTime(String time = "") {
-  if (time.length() == 0) {  // If no time provided, check for serial input
-    if (Serial.available() > 0) {
-      char c = Serial.read();
-      if (c == '`') {
-        Serial.println("Enter time (HH:MM): ");
-        String timeInput = "";
-        while (true) {
-          if (Serial.available() > 0) {
-            char t = Serial.read();
-            if (t == '\n') break;
-            if (t != '\r') timeInput += t;
-          }
-        }
-        time = timeInput;
-      }
-    }
-  }
-
-  if (time.length() >= 5) {  // Valid time format check
-    manuallyInputtedTime = time;
-    manualHours = time.substring(0,2).toInt();
-    manualMinutes = time.substring(3).toInt();
-    lastManualTimeUpdate = millis();
-  }
-}
-
-String getManualTime() {
-  if (manuallyInputtedTime.length() == 0) {
-    return "N/A";
-  }
-  
-  unsigned long elapsed = millis() - lastManualTimeUpdate;
-  int minutesPassed = elapsed / 60000; // Convert milliseconds to minutes
-  
-  manualMinutes += minutesPassed;
-  if (manualMinutes >= 60) {
-    manualHours += manualMinutes / 60;
-    manualMinutes %= 60;
-  }
-  if (manualHours >= 24) {
-    manualHours %= 24;
-  }
-  
-  lastManualTimeUpdate = millis();
-  
-  // Convert to 12-hour format
-  String ampm = (manualHours >= 12) ? "PM" : "AM";
-  int hours12 = manualHours % 12;
-  if (hours12 == 0) hours12 = 12;
-  
-  char buffer[9];
-  sprintf(buffer, "%02d:%02d%s", hours12, manualMinutes, ampm.c_str());
-  return String(buffer);
-}
-
-class PrintOnScreen {
-  private:
-
-  public:
-    PrintOnScreen() {
-
-    }
-
-    void printBackground() {
-      tft.fillScreen(TFT_NAVY);
-    }
-
-    void printTime(String time) {
-      // Clear only the region where the time is drawn to avoid clearing entire screen/flicker
-      tft.setTextColor(TFT_WHITE, TFT_NAVY);  // White text on navy background
-      tft.setTextSize(4);
-      // // Clear the top area where the time is drawn (use full width to be safe)
-      // tft.fillRect(0, 0, tft.width(), 64, TFT_NAVY);
-
-      tft.setCursor(15, 15);
-      tft.print("Time: ");
-      tft.print(time);
-    }
-
-    void printAlarms(bool isAlarm, std::set<String> alarms) {
-      if (!isAlarm) {
-        // // Clear screen part
-        // tft.fillRect(200, 0, 150, 150, TFT_NAVY);
-
-        tft.setTextColor(TFT_WHITE, TFT_NAVY);
-        tft.setTextSize(2);
-        tft.setCursor(330, 15);
-        tft.print("Alarms: ");
-        tft.setCursor(300, 57);
-        tft.print("No alarms set");
-      } else {
-        // // Clear screen part
-        // tft.fillRect(200, 0, 150, 150, TFT_NAVY);
-
-        // "Alarm: " part
-        tft.setTextColor(TFT_WHITE, TFT_NAVY);
-        tft.setTextSize(2);
-        tft.setCursor(330, 15);
-        tft.print("Alarms: ");
-        
-        // Alarms
-        int count = 0;
-        for (const auto& alarm : alarms) {
-          tft.setCursor(320, 57 + (count * 22));
-          tft.print(alarm);
-          if (count == 3) {
-            break;
-          }
-          count++;
-        }
-      }
-    }
-
-    
-};
-
-PrintOnScreen screenPrinting; 
 
 class Weather {
   // Private variables only
@@ -284,26 +130,6 @@ class Alarms {
       }
       return false;
     }
-
-    void handleScreenForAlarms() {
-      int count = 0;
-      std::set<String> returnedAlarms;
-      for (const auto& alarmTime : alarmSet) {
-        returnedAlarms.insert(alarmTime);
-        count++;
-        if (count == 3) {
-          break;
-        }
-      }
-      if (returnedAlarms.size() == 0) {
-        screenPrinting.printAlarms(false, returnedAlarms);
-      } else {
-        // Serial.println("There is an alarm set");
-        screenPrinting.printAlarms(true, returnedAlarms);
-      }
-
-      return;
-    }
 };
 
 class SpecificTimeTest {
@@ -328,12 +154,125 @@ class SpecificTimeTest {
   
 };
 
+class PrintOnScreen {
+  private:
+    TFT_eSPI &tftRef;  // Reference to TFT object for easier OOP handling
 
+    // Helper: convert 8-bit RGB to 16-bit color
+    inline uint16_t color565(uint8_t r, uint8_t g, uint8_t b) {
+      return ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
+    }
+
+    // Convert 565 -> RGB
+    void rgbFrom565(uint16_t c, uint8_t &r, uint8_t &g, uint8_t &b) {
+      r = ((c >> 11) & 0x1F) * 255 / 31;
+      g = ((c >> 5) & 0x3F) * 255 / 63;
+      b = (c & 0x1F) * 255 / 31;
+    }
+
+    // Draw vertical gradient
+    void drawVerticalGradient(uint16_t topColor, uint16_t bottomColor) {
+      int H = tftRef.height();
+      uint8_t r0, g0, b0, r1, g1, b1;
+      rgbFrom565(topColor, r0, g0, b0);
+      rgbFrom565(bottomColor, r1, g1, b1);
+
+      for (int y = 0; y < H; y++) {
+        float v = (H == 1) ? 0.0f : (float)y / (H - 1);
+        uint8_t r = (uint8_t)((1.0f - v) * r0 + v * r1);
+        uint8_t g = (uint8_t)((1.0f - v) * g0 + v * g1);
+        uint8_t b = (uint8_t)((1.0f - v) * b0 + v * b1);
+        tftRef.drawFastHLine(0, y, tftRef.width(), color565(r, g, b));
+      }
+    }
+
+  public:
+    PrintOnScreen(TFT_eSPI &tft) : tftRef(tft) {}
+
+    void printBackground() {
+      // Gradient background
+      uint16_t top = color565(8, 30, 90);
+      uint16_t bottom = color565(2, 6, 24);
+      drawVerticalGradient(top, bottom);
+
+      // Header bar
+      int headerH = max(36, tftRef.height() / 12);
+      int pad = 8;
+      uint16_t headerColor = color565(18, 60, 140);
+      tftRef.fillRoundRect(0, 0, tftRef.width(), headerH + 4, 8, headerColor);
+
+      // Tiny accent line under header
+      tftRef.fillRect(0, headerH + 4, tftRef.width(), 2, color565(255, 255, 255));
+
+      // Header text
+      tftRef.setTextSize(2);
+      tftRef.setTextColor(TFT_WHITE);
+      tftRef.setCursor(pad, 8);
+      tftRef.print("SMART CLOCK");
+
+      // Small label on right
+      String rightLabel = "Design Challenge";
+      int txtW = rightLabel.length() * 6 * 2; // approximate
+      tftRef.setCursor(tftRef.width() - txtW - pad, 8);
+      tftRef.print(rightLabel);
+
+      // Bottom decoration
+      tftRef.fillRect(0, tftRef.height() - 6, tftRef.width(), 6, color565(0, 0, 0));
+    }
+
+    void printTime(String time) {
+      int w = tftRef.width() - 40;
+      int h = max(80, tftRef.height() / 5);
+      int x = (tftRef.width() - w) / 2;
+      int y = (tftRef.height() - h) / 2 + 10;
+      int r = 14;
+
+      // Shadow
+      tftRef.fillRoundRect(x + 6, y + 6, w, h, r, color565(0, 0, 0));
+
+      // Card background
+      uint16_t cardColor = color565(10, 32, 80);
+      tftRef.fillRoundRect(x, y, w, h, r, cardColor);
+
+      // Inner highlight
+      tftRef.fillRoundRect(x + 6, y + 6, w - 12, 18, r / 2, color565(28, 80, 170));
+
+      // Small label
+      tftRef.setTextSize(2);
+      tftRef.setTextColor(color565(200, 220, 255));
+      tftRef.setCursor(x + 16, y + 10);
+      tftRef.print("TIME");
+
+      // Large time text
+      int textSizeLarge = 5;
+      int charW = 6 * textSizeLarge;
+      int textW = time.length() * charW;
+      int tx = x + (w - textW) / 2;
+      int ty = y + (h / 2) - (8 * textSizeLarge / 2) + 6;
+
+      // Shadow
+      tftRef.setTextSize(textSizeLarge);
+      tftRef.setTextColor(color565(0, 0, 0));
+      tftRef.setCursor(tx + 2, ty + 3);
+      tftRef.print(time);
+
+      // Foreground
+      tftRef.setTextColor(TFT_WHITE);
+      tftRef.setCursor(tx, ty);
+      tftRef.print(time);
+
+      // Hint
+      tftRef.setTextSize(1);
+      tftRef.setTextColor(color565(180, 200, 255));
+      tftRef.setCursor(x + 16, y + h - 18);
+      tftRef.print("Tap to change format");
+    }
+};
 
 
 // const int LED_PIN = 2;
 // const int BUTTON_PIN = 13;
-const int BUZZER_PIN = 19;
+// const int BUZZER_PIN = 14;
 SpecificTimeTest specificTimeTest;
 Weather weather;
 Alarms alarms;
@@ -376,10 +315,8 @@ void setup() {
   tft.setTextSize(2);
   tft.setCursor(10, 10);
   tft.println(screenStartText);
+  
 
-  // Give short time for text before starting
-  delay(1500);
-  screenPrinting.printBackground();
 
   // Get started (time takes only 5 seconds so no need)
   weather.fetchWeatherData();
@@ -388,11 +325,8 @@ void setup() {
   // use "button" mode for button
   // pinMode(BUTTON_PIN, INPUT_PULLUP);
   // // Initialize buzzer
-  pinMode(BUZZER_PIN, OUTPUT);
-  digitalWrite(BUZZER_PIN, HIGH);
-
-  // Manual Time Stuff
-  // putManualTime("");
+  // pinMode(BUZZER_PIN, OUTPUT);
+  // digitalWrite(BUZZER_PIN, LOW);
 }
 
 // Weather flag
@@ -402,25 +336,23 @@ const unsigned long weatherInterval = 3600000; // 1 hour in milliseconds
 const unsigned int timeInterval = 5000;
 unsigned long lastTimeUpdate = 0;
 
-const unsigned int alarmInterval = 5000;
-unsigned long lastAlarmUpdate = 0;
-
-const unsigned int backgroundInterval = 4000;
-unsigned long lastBackgroundUpdate = 0;
-
-String currentTime = "";
+PrintOnScreen screenPrinting(tft); // pass TFT object reference
 
 void loop() {
-  // Screen stuff
-
+  String currentTime = "";
   if (millis() - lastTimeUpdate > timeInterval) {
-  // currentTime = getCurrentTime();
-  currentTime = currentTimeSecondAPI();
-    // currentTime = getManualTime();
-
+  currentTime = getCurrentTime();
   Serial.println(currentTime);
-
   lastTimeUpdate = millis();
+  
+  // Screen Stuff (Time)
+
+  // tft.fillScreen(TFT_BLACK);
+  // tft.setCursor(10, 10);
+  // tft.print("Time: ");
+  // tft.println(currentTime);
+  screenPrinting.printBackground();
+  screenPrinting.printTime(currentTime);
   }
 
   // if (specificTimeTest.isTimeYet(currentTime)) {
@@ -450,16 +382,13 @@ void loop() {
       alarms.addAlarm(timeInput);
     }
   }
-
   
 
   // ALL What's below to be changed !!! 
   
-  if (alarms.checkAlarm(currentTime)) {
-    // digitalWrite(LED_PIN, HIGH);
-    digitalWrite(BUZZER_PIN, LOW);
-    Serial.println("Buzzer should be on");
-  }
+  // if (alarms.checkAlarm(currentTime)) {
+  //   digitalWrite(LED_PIN, HIGH);
+  // }
 
   // int buttonState = digitalRead(BUTTON_PIN);
   // if (buttonState == LOW) {
@@ -469,13 +398,6 @@ void loop() {
   //   digitalWrite(BUZZER_PIN, HIGH);
   // }
   
-  if (millis() - lastBackgroundUpdate > backgroundInterval) {
-    screenPrinting.printBackground();
-    screenPrinting.printTime(currentTime);
-    alarms.handleScreenForAlarms();
-
-    lastBackgroundUpdate = millis();
-  }
   
 
 
