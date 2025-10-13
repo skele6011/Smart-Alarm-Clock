@@ -4,11 +4,14 @@
 #include <ArduinoJson.h>
 #include "secrets.h"
 #include <set>
+#include <TFT_eSPI.h>
 
 // const char* SSID = "DOEGuest";
 // const char* PASSWORD = "NYC$itevent";
 const char* TIME_API = "http://worldclockapi.com/api/json/est/now";
 const char* WEATHER_API = "https://api.open-meteo.com/v1/forecast?latitude=40.6501&longitude=-73.9496&hourly=temperature_2m,rain,showers&timezone=America%2FNew_York&forecast_days=3";
+TFT_eSPI tft = TFT_eSPI();
+String screenStartText = "Hi, I am Screen!";
 
 String getCurrentTime() {
   // Create HTTP object and set URL
@@ -151,9 +154,33 @@ class SpecificTimeTest {
   
 };
 
-const int LED_PIN = 2;
-const int BUTTON_PIN = 13;
-const int BUZZER_PIN = 14;
+class PrintOnScreen {
+  private:
+
+  public:
+    PrintOnScreen() {
+
+    }
+
+    void printBackground() {
+      tft.fillScreen(TFT_NAVY);
+    }
+
+    void printTime(String time) {
+      tft.fillRect(50, 150, 220, 50, TFT_NAVY); // Clear previous time display
+
+      tft.setTextColor(TFT_WHITE, TFT_NAVY);  // White text on navy background
+      tft.setTextSize(5);
+      tft.setCursor(20, 20);
+      tft.print("Time: ");
+      tft.print(time);
+
+    }
+};
+
+// const int LED_PIN = 2;
+// const int BUTTON_PIN = 13;
+// const int BUZZER_PIN = 14;
 SpecificTimeTest specificTimeTest;
 Weather weather;
 Alarms alarms;
@@ -162,7 +189,7 @@ void setup() {
   // Baud #
   Serial.begin(115200);
 
-  pinMode(LED_PIN, OUTPUT);
+  // pinMode(LED_PIN, OUTPUT);
 
   // Connect to WiFi and wait till connection
   WiFi.begin(SSID, PASSWORD);
@@ -176,15 +203,38 @@ void setup() {
   Serial.println("IP Address: ");
   Serial.print(WiFi.localIP());
 
+  // Screen stuff
+  Serial.println("Waiting 3 seconds before starting (screen)");
+
+  // Manual screen reset
+  // pinMode(TFT_RST, OUTPUT);
+  // digitalWrite(TFT_RST, LOW);
+  // delay(50);
+  // digitalWrite(TFT_RST, HIGH);
+  // delay(50);
+
+  // Screen initilaization 
+  tft.init();
+  tft.setRotation(1);
+  tft.fillScreen(TFT_BLACK);
+
+  // Screen text popup
+  tft.setTextColor(TFT_WHITE);
+  tft.setTextSize(2);
+  tft.setCursor(10, 10);
+  tft.println(screenStartText);
+  
+
+
   // Get started (time takes only 5 seconds so no need)
   weather.fetchWeatherData();
   weather.printNext24Hours();
   
   // use "button" mode for button
-  pinMode(BUTTON_PIN, INPUT_PULLUP);
-  // Initialize buzzer
-  pinMode(BUZZER_PIN, OUTPUT);
-  digitalWrite(BUZZER_PIN, LOW);
+  // pinMode(BUTTON_PIN, INPUT_PULLUP);
+  // // Initialize buzzer
+  // pinMode(BUZZER_PIN, OUTPUT);
+  // digitalWrite(BUZZER_PIN, LOW);
 }
 
 // Weather flag
@@ -194,19 +244,30 @@ const unsigned long weatherInterval = 3600000; // 1 hour in milliseconds
 const unsigned int timeInterval = 5000;
 unsigned long lastTimeUpdate = 0;
 
+PrintOnScreen screenPrinting;
+
 void loop() {
   String currentTime = "";
   if (millis() - lastTimeUpdate > timeInterval) {
   currentTime = getCurrentTime();
   Serial.println(currentTime);
   lastTimeUpdate = millis();
+  
+  // Screen Stuff (Time)
+
+  // tft.fillScreen(TFT_BLACK);
+  // tft.setCursor(10, 10);
+  // tft.print("Time: ");
+  // tft.println(currentTime);
+  screenPrinting.printBackground();
+  screenPrinting.printTime(currentTime);
   }
 
-  if (specificTimeTest.isTimeYet(currentTime)) {
-    digitalWrite(LED_PIN, HIGH);
-  } else {
-    digitalWrite(LED_PIN, LOW);
-  }
+  // if (specificTimeTest.isTimeYet(currentTime)) {
+  //   digitalWrite(LED_PIN, HIGH);
+  // } else {
+  //   digitalWrite(LED_PIN, LOW);
+  // }
 
   if ((millis() - lastWeatherUpdate) > weatherInterval) {
     weather.fetchWeatherData();
@@ -233,17 +294,18 @@ void loop() {
 
   // ALL What's below to be changed !!! 
   
-  if (alarms.checkAlarm(currentTime)) {
-    digitalWrite(LED_PIN, HIGH);
-  }
+  // if (alarms.checkAlarm(currentTime)) {
+  //   digitalWrite(LED_PIN, HIGH);
+  // }
 
-  int buttonState = digitalRead(BUTTON_PIN);
-  if (buttonState == LOW) {
-    Serial.println("Button Pressed!");
-    digitalWrite(BUZZER_PIN, LOW);
-  } else {
-    digitalWrite(BUZZER_PIN, HIGH);
-  }
+  // int buttonState = digitalRead(BUTTON_PIN);
+  // if (buttonState == LOW) {
+  //   Serial.println("Button Pressed!");
+  //   digitalWrite(BUZZER_PIN, LOW);
+  // } else {
+  //   digitalWrite(BUZZER_PIN, HIGH);
+  // }
+  
   
 
 
